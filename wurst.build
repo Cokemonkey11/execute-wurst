@@ -1,0 +1,8 @@
+---
+projectName: "execute"
+dependencies:
+- "https://github.com/wurstscript/wurstStdlib2"
+buildMapData:
+  name: "Execute"
+  fileName: "(24)execute-0.0.0"
+  author: "Cokemonkey11"
