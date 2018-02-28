@@ -1,5 +1,5 @@
 package Spawn
-import Units
+import Units2
 
 tuple unit2(int a, int b)
 
@@ -37,7 +37,7 @@ init
     for i = 0 to 23
         let p = Player(i)
         if p.slotStatePlaying()
-            createUnit(p,
-                       mapping.fromRace(p.toRace()).sample(),
-                       vec2(0., 0.).polarOffset(angle(2. * PI * i / 24.), 1000.),
-                       angle(0.))
+            // createUnit(p,
+            //            mapping.fromRace(p.toRace()).sample(),
+            //            vec2(0., 0.).polarOffset(angle(2. * PI * i / 24.), 750.),
+            //            angle(0.))

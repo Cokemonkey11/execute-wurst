@@ -1,0 +1,33 @@
+package Effects2
+
+import Assets
+
+native SetSpecialEffectColorByPlayer(effect whichEfect, player whichPlayer)
+native SetSpecialEffectOrientation(effect whichEffect, real yaw, real pitch, real roll)
+native SetSpecialEffectPostion(effect whichEffect, real x, real y, real z)
+
+
+function effect.setColorByPlayer(player whichPlayer)
+    SetSpecialEffectColorByPlayer(this, whichPlayer)
+
+function effect.setOrientation(real yaw, real pitch, real roll)
+    SetSpecialEffectOrientation(this, yaw, pitch, roll)
+
+function effect.setPosition(vec3 where)
+    SetSpecialEffectPostion(this, where.x, where.y, where.z)
+
+
+init
+    FogEnable(false)
+
+    for j = 0 to 4
+        for i = 0 to 23
+            let p = Player(i)
+            let ang = 2. * PI * i / 24.
+            let pitch = 2. * PI * i / 24.
+            let pos = vec2(0., 0.).polarOffset(angle(ang), 300.)
+                                  .toVec3() + vec3(0., 0., 50. * j)
+            addEffect(Units.footman1, vec2(0., 0.))
+                ..setColorByPlayer(p)
+                ..setOrientation(ang, pitch, 0.)
+                ..setPosition(pos)
