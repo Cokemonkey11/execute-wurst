@@ -1,0 +1,610 @@
+package WurstExecute
+import Abilities
+import AbilityIds
+import ClosureTimers
+import ErrorHandling
+import Knockback3
+import LinkedList
+import LinkedListModule
+import SoundUtils
+
+import WurstMaybePrimitives
+import WurstTempLightning
+
+
+public enum ExecuteExecutableResult
+    _DEFAULT
+    REPEAT
+    DONE
+    DRAIN
+
+public interface ExecuteExecutableClosure
+    function execute(unit caster, unit target) returns ExecuteExecutableResult
+
+public interface ExecuteExecutable
+    function execute(unit caster, unit target) returns ExecuteExecutableResult
+
+    function copy() returns thistype
+
+
+/// Caster dashes to target.  Sync.  Default speed 1000 units/second.
+public class ExecuteDash implements ExecuteExecutable
+    maybeVec3 caster_vel
+    maybeReal duration
+    real speed
+
+    override function copy() returns thistype
+        return new ExecuteDash(this.speed)
+
+    function ctor(real speed)
+        this.speed = speed
+
+    construct()
+        ctor(1000)
+
+    construct(real speed)
+        ctor(speed)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        let cast_pos = caster.getPos()
+
+        if not this.caster_vel.has()
+            let vel = this.speed
+            let targ_pos = target.getPos()
+            caster.setFacing(cast_pos.angleTo(targ_pos))
+
+            this.caster_vel = maybeVec3(
+                true,
+                vel * ANIMATION_PERIOD * cast_pos.normalizedPointerTo(targ_pos).toVec3()
+            )
+            this.duration = maybeReal(
+                true,
+                (cast_pos.distanceTo(targ_pos) - 96.) / vel
+            )
+
+        caster.setXY(cast_pos + this.caster_vel.unwrap())
+
+        this.duration = this.duration.map(v -> v - ANIMATION_PERIOD)
+
+        return this.duration.get_or(-1.) < 0. ? ExecuteExecutableResult.DONE : ExecuteExecutableResult.REPEAT
+
+
+/// Caster dashes to target, respecting terrain-z and fly-height.  Sync.  Default speed is 1000.
+public class ExecuteDash3 implements ExecuteExecutable
+    maybeVec3 caster_vel
+    maybeReal duration
+    real speed
+
+    override function copy() returns thistype
+        return new ExecuteDash3(this.speed)
+
+    function ctor(real speed)
+        this.speed = speed
+
+    construct()
+        ctor(1000)
+
+    construct(real speed)
+        ctor(speed)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        if caster.addAbility(AbilityIds.stormCrowForm)
+            caster.removeAbility(AbilityIds.stormCrowForm)
+
+        let cast_pos = caster.getPos3Real()
+
+        if not this.caster_vel.has()
+            let vel = this.speed
+            let targ_pos = target.getPos3Real()
+            caster.setFacing(cast_pos.angleTo2d(targ_pos))
+
+            this.caster_vel = maybeVec3(true, vel * ANIMATION_PERIOD * cast_pos.normalizedPointerTo(targ_pos))
+            this.duration = maybeReal(
+                true,
+                (cast_pos.distanceTo(targ_pos) - 128.) / vel
+            )
+
+        caster.setPosReal(cast_pos + this.caster_vel.unwrap())
+
+        this.duration = this.duration.map(v -> v - ANIMATION_PERIOD)
+
+        return this.duration.get_or(-1.) < 0. ? ExecuteExecutableResult.DONE : ExecuteExecutableResult.REPEAT
+
+
+/// Caster dashes behind the target, respecting terrain-z and fly-height.  Sync.  Default speed is 1000.
+public class ExecuteDash3Behind implements ExecuteExecutable
+    maybeVec3 caster_vel
+    maybeReal duration
+    real speed
+
+    override function copy() returns thistype
+        return new ExecuteDash3Behind(this.speed)
+
+    function ctor(real speed)
+        this.speed = speed
+
+    construct()
+        ctor(1000)
+
+    construct(real speed)
+        ctor(speed)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        if caster.addAbility(AbilityIds.stormCrowForm)
+            caster.removeAbility(AbilityIds.stormCrowForm)
+
+        let cast_pos = caster.getPos3Real()
+
+        if not this.caster_vel.has()
+            let vel = this.speed
+            let targ_pos = target.getPos3Real()
+            caster.setFacing(targ_pos.angleTo2d(cast_pos))
+
+            this.caster_vel = maybeVec3(true, vel * ANIMATION_PERIOD * cast_pos.normalizedPointerTo(targ_pos))
+            this.duration = maybeReal(
+                true,
+                (cast_pos.distanceTo(targ_pos) + 128.) / vel
+            )
+
+        caster.setXYZReal(cast_pos + this.caster_vel.unwrap())
+
+        this.duration = this.duration.map(v -> v - ANIMATION_PERIOD)
+
+        return this.duration.get_or(-1.) < 0. ? ExecuteExecutableResult.DONE : ExecuteExecutableResult.REPEAT
+
+
+/// Caster plays attack animation.  Async.  Default animation speed is 1.0.
+public class ExecuteStrike implements ExecuteExecutable
+    real animation_scale
+
+    override function copy() returns thistype
+        return new ExecuteStrike(this.animation_scale)
+
+    function ctor(real animation_scale)
+        this.animation_scale = animation_scale
+
+    construct()
+        ctor(1.0)
+
+    construct(real animation_scale)
+        ctor(animation_scale)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        caster.setAnimation("attack")
+        caster.setTimeScale(animation_scale)
+        return ExecuteExecutableResult.DONE
+
+
+/// A delay occurs.  Sync.  Default duration is 1000 milliseconds.
+public class ExecuteWait implements ExecuteExecutable
+    real duration
+
+    override function copy() returns thistype
+        return new ExecuteWait(this.duration)
+
+    function ctor(real duration)
+        this.duration = duration
+
+    construct()
+        ctor(1.0)
+
+    construct(real duration)
+        ctor(duration)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        this.duration -= ANIMATION_PERIOD
+
+        return this.duration < 0. ? ExecuteExecutableResult.DONE : ExecuteExecutableResult.REPEAT
+
+
+/// Animation is played.  Async.  Default animation-index is 1.
+public class ExecuteAnimate implements ExecuteExecutable
+    int animation_index
+
+    override function copy() returns thistype
+        return new ExecuteAnimate(this.animation_index)
+
+    function ctor(int animation_index)
+        this.animation_index = animation_index
+
+    construct()
+        ctor(1)
+
+    construct(int animation_index)
+        ctor(animation_index)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        caster.setAnimation(this.animation_index)
+        return ExecuteExecutableResult.DONE
+
+
+/// Deals damage to the target.  Async.
+public class ExecuteDamage implements ExecuteExecutable
+    real damage
+
+    override function copy() returns thistype
+        return new ExecuteDamage(this.damage)
+
+    construct(real damage)
+        this.damage = damage
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        caster.damageTarget(target, this.damage)
+        return ExecuteExecutableResult.DONE
+
+
+/// Breaks if the target is too far away.  Instant.  Default distance is 200.
+public class ExecuteConditionDistance implements ExecuteExecutable
+    real distance
+
+    override function copy() returns thistype
+        return new ExecuteConditionDistance(this.distance)
+
+    function ctor(real distance)
+        this.distance = distance
+
+    construct()
+        ctor(200.)
+
+    construct(real distance)
+        ctor(distance)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        let dist = this.distance
+        return caster.getPos().distanceToSq(target.getPos()) > dist * dist
+            ? ExecuteExecutableResult.DRAIN
+            : ExecuteExecutableResult.DONE
+
+
+/// Breaks if either caster or target is dead.  Instant.
+public class ExecuteConditionAlive implements ExecuteExecutable
+
+    override function copy() returns thistype
+        return new ExecuteConditionAlive()
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        return caster.isAlive() ? ExecuteExecutableResult.DONE : ExecuteExecutableResult.DRAIN
+
+
+/// Knocks back the target.  Async.  Default power is 1000.
+public class ExecuteKnockback implements ExecuteExecutable
+    real power
+
+    override function copy() returns thistype
+        return new ExecuteKnockback(this.power)
+
+    function ctor(real power)
+        this.power = power
+
+    construct()
+        ctor(1000.)
+
+    construct(real power)
+        ctor(power)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        Knockback3.add(
+            target,
+            this.power,
+            caster.getPos().angleTo(target.getPos()),
+            angle(7. * PI / 16.)
+        )
+        return ExecuteExecutableResult.DONE
+
+
+/// Knocks the target in an arc towards the caster.  Async.  Default power is 1000.
+public class ExecuteKnockArcToCaster implements ExecuteExecutable
+    real power
+
+    override function copy() returns thistype
+        return new ExecuteKnockArcToCaster(this.power)
+
+    function ctor(real power)
+        this.power = power
+
+    construct()
+        ctor(1000.)
+
+    construct(real power)
+        ctor(power)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        Knockback3.add(
+            target,
+            this.power,
+            target.getPos().angleTo(caster.getPos()),
+            angle(1. * PI / 4.)
+        )
+        return ExecuteExecutableResult.DONE
+
+
+/// Knocks up the target.  Async.  Default power is 1000.
+public class ExecuteKnockup implements ExecuteExecutable
+    real power
+
+    override function copy() returns thistype
+        return new ExecuteKnockup(this.power)
+
+    function ctor(real power)
+        this.power = power
+
+    construct()
+        ctor(1000.)
+
+    construct(real power)
+        ctor(power)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        Knockback3.add(
+            target,
+            this.power,
+            caster.getPos().angleTo(target.getPos()),
+            angle(0.)
+        )
+        return ExecuteExecutableResult.DONE
+
+
+/// Knocks down the target.  Async.  Default power is 1000.
+public class ExecuteKnockdown implements ExecuteExecutable
+    real power
+
+    override function copy() returns thistype
+        return new ExecuteKnockdown(this.power)
+
+    function ctor(real power)
+        this.power = power
+
+    construct()
+        ctor(1000.)
+
+    construct(real power)
+        ctor(power)
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        Knockback3.add(
+            target,
+            this.power,
+            caster.getPos().angleTo(target.getPos()),
+            angle(PI)
+        )
+        return ExecuteExecutableResult.DONE
+
+
+/// Plays a sound.  Async.
+public class ExecuteSound implements ExecuteExecutable
+    SoundDefinition _sound
+
+    override function copy() returns thistype
+        return new ExecuteSound(this._sound)
+
+    construct(SoundDefinition _sound)
+        this._sound = _sound
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        this._sound.playOnPoint(caster.getPos().withTerrainZ())
+        return ExecuteExecutableResult.DONE
+
+
+/// Flashes an effect at the target.  Async.
+public class ExecuteFxTarget implements ExecuteExecutable
+    string fx
+
+    override function copy() returns thistype
+        return new ExecuteFxTarget(this.fx)
+
+    construct(string fx)
+        this.fx = fx
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        flashEffect(this.fx, target, "origin")
+        return ExecuteExecutableResult.DONE
+
+
+/// Flashes an effect at the caster.  Async.
+public class ExecuteFxCaster implements ExecuteExecutable
+    string fx
+
+    override function copy() returns thistype
+        return new ExecuteFxCaster(this.fx)
+
+    construct(string fx)
+        this.fx = fx
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        flashEffect(this.fx, caster, "origin")
+        return ExecuteExecutableResult.DONE
+
+
+/// Prevents caster from moving until the Execute instance is destroyed.  Async.
+public class ExecuteLockCaster implements ExecuteExecutable
+    override function copy() returns thistype
+        return new ExecuteLockCaster()
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        caster.setPropWindow(angle(0.))
+        caster.pause()
+        return ExecuteExecutableResult.DONE
+
+
+/// Prevents target from moving until the Execute instance is destroyed.  Async.
+public class ExecuteLockTarget implements ExecuteExecutable
+    override function copy() returns thistype
+        return new ExecuteLockTarget()
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        target.setPropWindow(angle(0.))
+        target.pause()
+        return ExecuteExecutableResult.DONE
+
+
+public class ExecuteUnlockCaster implements ExecuteExecutable
+    override function copy() returns thistype
+        return new ExecuteUnlockCaster()
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        caster.setPropWindow(caster.getDefaultPropWindow())
+        caster.unpause()
+        return ExecuteExecutableResult.DONE
+
+
+/// Target knockback velocity is thrown away.  Instant.
+public class ExecuteForgetTargetVelocity implements ExecuteExecutable
+    override function copy() returns thistype
+        return new ExecuteForgetTargetVelocity()
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        Knockback3.forget(target)
+        return ExecuteExecutableResult.DONE
+
+
+/// Caster knockback velocity is thrown away.  Instant.
+public class ExecuteForgetCasterVelocity implements ExecuteExecutable
+    override function copy() returns thistype
+        return new ExecuteForgetCasterVelocity()
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        Knockback3.forget(caster)
+        return ExecuteExecutableResult.DONE
+
+
+/// Caster becomes subject to gravity, and falls in a parabola.  Async.
+public class ExecuteEnableCasterVelocity implements ExecuteExecutable
+    override function copy() returns thistype
+        return new ExecuteEnableCasterVelocity()
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        Knockback3.add(caster, 0., angle(0.), angle(0.))
+        return ExecuteExecutableResult.DONE
+
+
+/// A lightning effect links the caster to the target for the duration specified.
+public class ExecuteLightning implements ExecuteExecutable
+    real duration
+    string style
+
+    override function copy() returns thistype
+        return new ExecuteLightning(this.duration, this.style)
+
+    construct(real duration, string style)
+        this.duration = duration
+        this.style = style
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        new TempLightning(caster, target, duration, style)
+        return ExecuteExecutableResult.DONE
+
+/// Executes the provided Execute context.
+public class ExecuteDelegate implements ExecuteExecutable
+    ExecuteExecutable context
+
+    override function copy() returns thistype
+        return new ExecuteDelegate(this.context)
+
+    construct(ExecuteExecutable context)
+        this.context = context
+
+    override function execute(unit caster, unit target) returns ExecuteExecutableResult
+        return this.context.execute(caster, target)
+
+
+public class Execute
+    use LinkedListModule
+
+    // Default execute sequence.  A pair of dashes are chained, each with conditional damage.
+    static let default_seq = new LinkedList<ExecuteExecutable>()
+        ..add(new ExecuteLockCaster())
+        ..add(new ExecuteAnimate(8))
+        ..add(new ExecuteSound(new SoundDefinition(Sounds.lavaSpawnMissileBirth1, false)))
+        ..add(new ExecuteDash(1500))
+        ..add(new ExecuteStrike(2.5))
+        ..add(new ExecuteWait(.2))
+        ..add(new ExecuteConditionDistance())
+        ..add(new ExecuteConditionAlive())
+        ..add(new ExecuteFxTarget(Abilities.holyBoltSpecialArt))
+        ..add(new ExecuteDamage(100.))
+        ..add(new ExecuteSound(new SoundDefinition(Sounds.metalHeavyBashFlesh1, false)))
+        ..add(new ExecuteKnockback())
+        ..add(new ExecuteWait(.6))
+        ..add(new ExecuteConditionAlive())
+
+        // Second part.
+        ..add(new ExecuteAnimate(8))
+        ..add(new ExecuteSound(new SoundDefinition(Sounds.lavaSpawnMissileBirth1, false)))
+        ..add(new ExecuteFxTarget(Abilities.holyBoltSpecialArt))
+        ..add(new ExecuteKnockup(1400.))
+        ..add(new ExecuteWait(.45))
+        ..add(new ExecuteForgetTargetVelocity())
+        ..add(new ExecuteDash3(1500.))
+        ..add(new ExecuteAnimate(5))
+        ..add(new ExecuteWait(.3))
+        ..add(new ExecuteConditionAlive())
+        ..add(new ExecuteFxTarget(Abilities.holyBoltSpecialArt))
+        ..add(new ExecuteDamage(100.))
+        ..add(new ExecuteSound(new SoundDefinition(Sounds.lavaSpawnMissileBirth1, false)))
+        ..add(new ExecuteKnockback(1500.))
+        ..add(new ExecuteWait(.25))
+        ..add(new ExecuteEnableCasterVelocity())
+        ..add(new ExecuteConditionAlive())
+
+        // Third part.
+        ..add(new ExecuteFxTarget(Abilities.holyBoltSpecialArt))
+        ..add(new ExecuteForgetCasterVelocity())
+        ..add(new ExecuteForgetTargetVelocity())
+        ..add(new ExecuteDash3Behind(1500.))
+        ..add(new ExecuteAnimate(5))
+        ..add(new ExecuteWait(.3))
+        ..add(new ExecuteConditionAlive())
+        ..add(new ExecuteFxTarget(Abilities.holyBoltSpecialArt))
+        ..add(new ExecuteDamage(100.))
+        ..add(new ExecuteSound(new SoundDefinition(Sounds.lavaSpawnMissileBirth1, false)))
+        ..add(new ExecuteKnockback())
+        ..add(new ExecuteAnimate(7))
+        ..add(new ExecuteWait(.3))
+        ..add(new ExecuteEnableCasterVelocity())
+
+
+    unit target
+    unit caster
+    LinkedList<ExecuteExecutable> seq
+
+    ondestroy
+        this.caster..setPropWindow(this.caster.getDefaultPropWindow())..unpause()
+        this.target..setPropWindow(this.target.getDefaultPropWindow())..unpause()
+
+    function ctor(unit caster, unit target, LinkedList<ExecuteExecutable> seq)
+        this.caster = caster
+        this.target = target
+        this.seq = seq
+
+        this.caster.setPos(this.caster.getPos())
+
+        if size == 1
+            doPeriodically(ANIMATION_PERIOD) (CallbackPeriodic cb) ->
+                for inst from staticItr()
+                    switch inst.seq.getFirst().execute(inst.caster, inst.target)
+                        case _DEFAULT
+                            error("Bad ExecuteExecutable!")
+                        case DONE
+                            destroy inst.seq.dequeue()
+                        case REPEAT
+                            skip
+                        case DRAIN
+                            while not inst.seq.isEmpty()
+                                destroy inst.seq.dequeue()
+
+                    if inst.seq.isEmpty()
+                        inst.caster.setTimeScale(1.)
+                        destroy inst
+
+                if size == 0
+                    destroy cb
+
+    construct(unit caster, unit target)
+        ctor(caster, target, default_seq.map(seq -> seq.copy()))
+
+    /// Constructs and runs a new Execute.
+    /// - Input `effects` is immutable reference.
+    /// - Input `sounds` is immutable reference.
+    /// - Input `sequence` is deep-cloned and owned.
+    construct(unit caster, unit target, LinkedList<ExecuteExecutable> sequence)
+        ctor(caster, target, sequence.map(seq -> seq.copy()))

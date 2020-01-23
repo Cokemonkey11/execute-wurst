@@ -1,8 +1,10 @@
 ---
-projectName: "execute"
+projectName: WurstExecute
 dependencies:
-- "https://github.com/wurstscript/wurstStdlib2"
+- https://github.com/wurstscript/WurstStdlib2
+- https://github.com/cokemonkey11/WurstTempLightning
+- https://github.com/cokemonkey11/WurstMaybePrimitives
 buildMapData:
-  name: "Execute"
-  fileName: "(24)execute-0.0.0"
-  author: "Cokemonkey11"
+  name: WurstExecute Test Map
+  fileName: (24)execute-0.0.0
+  author: Cokemonkey11
