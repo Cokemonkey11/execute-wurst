@@ -29,8 +29,8 @@ public interface ExecuteExecutable
 
 /// Caster dashes to target.  Sync.  Default speed 1000 units/second.
 public class ExecuteDash implements ExecuteExecutable
-    maybeVec3 caster_vel
-    maybeReal duration
+    maybe_vec3 caster_vel
+    maybe_real duration
     real speed
 
     override function copy() returns thistype
@@ -53,14 +53,8 @@ public class ExecuteDash implements ExecuteExecutable
             let targ_pos = target.getPos()
             caster.setFacing(cast_pos.angleTo(targ_pos))
 
-            this.caster_vel = maybeVec3(
-                true,
-                vel * ANIMATION_PERIOD * cast_pos.normalizedPointerTo(targ_pos).toVec3()
-            )
-            this.duration = maybeReal(
-                true,
-                (cast_pos.distanceTo(targ_pos) - 96.) / vel
-            )
+            this.caster_vel = maybe_vec3(vel * ANIMATION_PERIOD * cast_pos.normalizedPointerTo(targ_pos).toVec3())
+            this.duration = maybe_real((cast_pos.distanceTo(targ_pos) - 96.) / vel)
 
         caster.setXY(cast_pos + this.caster_vel.unwrap())
 
@@ -71,8 +65,8 @@ public class ExecuteDash implements ExecuteExecutable
 
 /// Caster dashes to target, respecting terrain-z and fly-height.  Sync.  Default speed is 1000.
 public class ExecuteDash3 implements ExecuteExecutable
-    maybeVec3 caster_vel
-    maybeReal duration
+    maybe_vec3 caster_vel
+    maybe_real duration
     real speed
 
     override function copy() returns thistype
@@ -98,11 +92,8 @@ public class ExecuteDash3 implements ExecuteExecutable
             let targ_pos = target.getPos3Real()
             caster.setFacing(cast_pos.angleTo2d(targ_pos))
 
-            this.caster_vel = maybeVec3(true, vel * ANIMATION_PERIOD * cast_pos.normalizedPointerTo(targ_pos))
-            this.duration = maybeReal(
-                true,
-                (cast_pos.distanceTo(targ_pos) - 128.) / vel
-            )
+            this.caster_vel = maybe_vec3(vel * ANIMATION_PERIOD * cast_pos.normalizedPointerTo(targ_pos))
+            this.duration = maybe_real((cast_pos.distanceTo(targ_pos) - 128.) / vel)
 
         caster.setPosReal(cast_pos + this.caster_vel.unwrap())
 
@@ -113,8 +104,8 @@ public class ExecuteDash3 implements ExecuteExecutable
 
 /// Caster dashes behind the target, respecting terrain-z and fly-height.  Sync.  Default speed is 1000.
 public class ExecuteDash3Behind implements ExecuteExecutable
-    maybeVec3 caster_vel
-    maybeReal duration
+    maybe_vec3 caster_vel
+    maybe_real duration
     real speed
 
     override function copy() returns thistype
@@ -140,11 +131,8 @@ public class ExecuteDash3Behind implements ExecuteExecutable
             let targ_pos = target.getPos3Real()
             caster.setFacing(targ_pos.angleTo2d(cast_pos))
 
-            this.caster_vel = maybeVec3(true, vel * ANIMATION_PERIOD * cast_pos.normalizedPointerTo(targ_pos))
-            this.duration = maybeReal(
-                true,
-                (cast_pos.distanceTo(targ_pos) + 128.) / vel
-            )
+            this.caster_vel = maybe_vec3(vel * ANIMATION_PERIOD * cast_pos.normalizedPointerTo(targ_pos))
+            this.duration = maybe_real((cast_pos.distanceTo(targ_pos) + 128.) / vel)
 
         caster.setXYZReal(cast_pos + this.caster_vel.unwrap())
 
