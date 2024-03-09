@@ -38,6 +38,8 @@ public class ExecuteDash implements ExecuteExecutable
 
     function ctor(real speed)
         this.speed = speed
+        this.caster_vel = maybe_vec3(null)
+        this.duration = maybe_real(null)
 
     construct()
         ctor(1000)
@@ -74,6 +76,8 @@ public class ExecuteDash3 implements ExecuteExecutable
 
     function ctor(real speed)
         this.speed = speed
+        this.caster_vel = maybe_vec3(null)
+        this.duration = maybe_real(null)
 
     construct()
         ctor(1000)
@@ -113,6 +117,8 @@ public class ExecuteDash3Behind implements ExecuteExecutable
 
     function ctor(real speed)
         this.speed = speed
+        this.caster_vel = maybe_vec3(null)
+        this.duration = maybe_real(null)
 
     construct()
         ctor(1000)
